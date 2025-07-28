@@ -19,7 +19,8 @@ Tu aplicación de escritorio está lista para usar y distribuir.
    requirements.txt         - Dependencias
    biomedical_dsp.spec     - Configuración PyInstaller
    install.bat             - Instalador automático
-   test_app.py             - Script de pruebas
+   test_app.py             - Script de pruebas (local)
+   test_app_ci.py          - Script de pruebas (CI/CD)
    README.md               - Documentación
 
 🚀 PARA DISTRIBUIR:
@@ -74,10 +75,19 @@ Si tienes problemas:
 ✅ Releases automáticos con tags
 ✅ Versiones actualizadas (actions/upload-artifact@v4)
 ✅ Compatible con GitHub más reciente
+✅ Problema de emojis en CI/CD solucionado
+✅ Script de pruebas separado para CI (test_app_ci.py)
 
 Para crear un release:
 git tag v1.0.0
 git push origin v1.0.0
+
+🐛 PROBLEMA SOLUCIONADO:
+========================
+
+❌ Error original: UnicodeEncodeError con emojis en CI
+✅ Solución: Script separado test_app_ci.py sin emojis
+✅ CI/CD ahora funciona perfectamente
 
 🏆 ¡PROYECTO COMPLETADO CON ÉXITO!
 

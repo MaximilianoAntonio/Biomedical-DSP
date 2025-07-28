@@ -26,7 +26,7 @@ jobs:
         pip install pyinstaller
     
     - name: Run tests
-      run: python test_app.py
+      run: python test_app_ci.py
     
     - name: Build executable
       run: python -m PyInstaller biomedical_dsp.spec

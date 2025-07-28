@@ -49,23 +49,31 @@ Una aplicación de escritorio moderna para estudiar Procesamiento Digital de Se�
 - `matplotlib`, `numpy`, `scipy` - Para los ejemplos de DSP
 - `pyinstaller` - Para generar ejecutables
 
-## 📁 Estructura del Proyecto
+## 📁 ARCHIVOS DEL PROYECTO:
+   main.py                 - Aplicación principal
+   utils.py               - Utilidades
+   test_app.py           - Pruebas locales (con emojis)
+   test_app_ci.py        - Pruebas CI/CD (compatible)
+   biomedical_dsp.spec   - Configuración PyInstaller
+   requirements.txt      - Dependencias
+   install.bat          - Instalador automático
+   README.md            - Documentación
 
+## 🔧 Desarrollo
+
+### Pruebas Locales
+```bash
+python test_app.py
 ```
-Biomedical-DSP/
-├── main.py                    # Aplicación principal
-├── requirements.txt           # Dependencias Python
-├── setup.bat                 # Script de instalación
-├── build_exe.bat            # Script para generar ejecutable
-├── icon.ico                 # Icono de la aplicación
-├── Unidad 01 Muestreo-reconstrucción-cuantiación/
-│   ├── Clase 01 Analógico-muestreo.pdf
-│   ├── Clase 01- Señales analógicas y muestreo.py
-│   └── ...
-├── Unidad 02 Sistemas de tiempo discreto/
-├── Unidad 03 Transformadas de Fourier/
-├── Unidad 04 Diseño de filtros digitales/
-└── Unidad 05 Técnicas avanzadas/
+
+### Pruebas CI/CD (GitHub Actions)
+```bash
+python test_app_ci.py
+```
+
+### Generar Ejecutable
+```bash
+python -m PyInstaller biomedical_dsp.spec
 ```
 
 ## 🎨 Capturas de Pantalla
