@@ -12,10 +12,10 @@ jobs:
     runs-on: windows-latest
     
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
     
@@ -29,22 +29,22 @@ jobs:
       run: python test_app.py
     
     - name: Build executable
-      run: pyinstaller biomedical_dsp.spec
+      run: python -m PyInstaller biomedical_dsp.spec
     
     - name: Upload executable
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: biomedical-dsp-windows
         path: dist/Biomedical-DSP.exe
     
     - name: Create Release
       if: startsWith(github.ref, 'refs/tags/')
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         files: dist/Biomedical-DSP.exe
         name: Biomedical DSP ${{ github.ref_name }}
         body: |
-          ## 🧠 Biomedical DSP Learning Platform ${{ github.ref_name }}
+          ## 🧠 Biomedical Digital Signal Processing ${{ github.ref_name }}
           
           ### 📥 Descarga e Instalación
           1. Descarga `Biomedical-DSP.exe`
@@ -57,6 +57,8 @@ jobs:
           - 💻 Editor y ejecutor de código Python
           - 🎨 Interfaz moderna y estética
           - 🚀 Ejecutable portátil (no requiere Python)
+          - 📚 Indicador de clase seleccionada en tiempo real
+          - 🔍 Agrupación automática de archivos por clase
           
           ### 🔧 Requisitos del Sistema
           - Windows 10 o superior

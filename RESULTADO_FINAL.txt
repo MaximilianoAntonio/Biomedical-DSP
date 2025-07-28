@@ -66,6 +66,19 @@ Si tienes problemas:
 2. Revisa que el archivo .exe no esté bloqueado por antivirus
 3. Ejecuta como administrador si es necesario
 
+🔧 GITHUB ACTIONS:
+==================
+
+✅ GitHub Actions configurado y actualizado
+✅ Build automático al hacer push
+✅ Releases automáticos con tags
+✅ Versiones actualizadas (actions/upload-artifact@v4)
+✅ Compatible con GitHub más reciente
+
+Para crear un release:
+git tag v1.0.0
+git push origin v1.0.0
+
 🏆 ¡PROYECTO COMPLETADO CON ÉXITO!
 
 Tu aplicación "Biomedical Digital Signal Processing" está 
