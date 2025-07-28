@@ -1,97 +1,107 @@
-## Descripción
+# Biomedical Digital Signal Processing
 
-Este repositorio contiene una colección de Jupyter Notebooks relacionados con el Procesamiento Digital de Señales Biomédicas (Biomedical Digital Signal Processing - DSP). Los notebooks cubren diversos temas fundamentales y avanzados en el análisis y procesamiento de señales en el contexto biomédico.
+Una aplicación de escritorio moderna para estudiar Procesamiento Digital de Señales Biomédicas.
 
-## Contenido
+## 🚀 Características
 
-El repositorio está organizado en torno a una serie de clases o módulos en formato Jupyter Notebook, que se encuentran en el directorio `Clases/`. Los temas cubiertos incluyen:
+- **Navegación intuitiva** por unidades y clases del curso
+- **Indicador de clase activa** con destacado visual
+- **Visualización de PDFs** con opción de pantalla completa
+- **Editor de código Python** integrado con resaltado de sintaxis
+- **Ejecución de código** en tiempo real con salida en vivo
+- **Interfaz moderna** con tema oscuro
+- **Ejecutable portátil** - no requiere instalación
 
-### Fundamentos de Señales y Sistemas
-* Conceptos básicos de señales y sistemas discretos.
-* Muestreo, aliasing y reconstrucción de señales (`Muestreo__aliasing_y_reconstrucción__1.3.1__1.4_.ipynb`, `Prefiltros_antialias__1.5.3_.ipynb`, `Reconstrucciones_ideales_y_tipo_escalera__1.6_.ipynb`).
-* Cuantización (`Cuantización (2.1).ipynb`).
-* Sistemas discretos lineales e invariantes en el tiempo (LTI) (`Sistemas discretos lineales e invariantes en el tiempo (3.2).ipynb`).
-* Respuesta al impulso y tipos de sistemas (FIR, IIR) (`Respuesta al impulso (3.3) respuesta al impulso finita e infinita FIR IIR (3.4).ipynb`).
-* Convolución (`Convolución (4.1.1) (4.1.3).ipynb`).
-* Causalidad y estabilidad (`Causalidad y estabilidad (3.5).ipynb`).
+## 📦 Instalación Rápida
 
-### Análisis en Frecuencia
-* Espectro de señales muestreadas y la Transformada de Fourier de Tiempo Discreto (DTFT) (`Espectro_de_señales_muestreadas__DTFT___1.5_.ipynb`, `Recordatorio__DTFT__y_resolución_en_frecuencia_y_ventaneo__9.1_.ipynb`).
-* Transformada Discreta de Fourier (DFT) y su inversa (`DFT (10.1) y DFT inversa (10.6).ipynb`).
-* Resolución en frecuencia, ventaneo y zero padding (`Resolución en frecuencia y ventaneo (9.1).ipynb`, `Zero padding (10.2) y Resolución fisica Vs. computacional (10.3).ipynb`).
-* Densidad Espectral de Potencia (PSD) (`PSD__filtros_de_corrección_de_fase.ipynb`).
+### Para Usuarios (Solo ejecutar)
 
-### Transformada Z
-* Introducción y propiedades de la Transformada Z (`Transformada Z (5.1-5.3).ipynb`).
+1. Descarga el archivo `Biomedical-DSP.exe` desde releases
+2. Ejecuta `Biomedical-DSP.exe` (no requiere instalación)
+3. ¡Disfruta aprendiendo DSP!
 
-### Diseño de Filtros Digitales
-* **Filtros FIR:**
-    * Diseño de filtros FIR por el método de ventanas (`Diseño de filtros FIR por ventanas (11.1).ipynb`).
-* **Filtros IIR:**
-    * Diseño de filtros IIR pasa-bajas y pasa-altas mediante transformada bilineal (`Diseño_de_filtros_IIR_pasa-bajas_altas__por_transformada_bilineal__12.2_.ipynb`).
-    * Diseño de filtros IIR pasa-banda y rechaza-banda mediante transformada bilineal (`Diseño de filtros IIR pasa rechazo banda por ransformada bilineal (12.3).ipynb`).
-    * Diseño de filtros IIR de orden superior (`Diseño_filtros_IIR_de_orden_superior__12.6-12.7_.ipynb`).
-* Filtros de corrección de fase (`PSD__filtros_de_corrección_de_fase.ipynb`).
+### Para Desarrolladores
 
-### Tópicos Avanzados y Aplicaciones Biomédicas
-* Análisis temporal de señales, Transformada de Hilbert y PCA (`Análisis temporal de señales y transformada de Hilbert PCA... y métricas de filtrado.ipynb`).
-* Filtros Adaptativos (`Filtros_adaptativos.ipynb`).
-* Filtros de Kalman (`Filtros_de_Kalman.ipynb`).
-* Transformada Wavelet (`Transformada Wavelet.ipynb`).
+1. Clona este repositorio
+2. Ejecuta `install.bat` para instalación automática
+3. Ejecuta `python main.py` para probar
+4. Ejecuta `python -m PyInstaller biomedical_dsp.spec` para generar el ejecutable
 
-## Requisitos Previos
+## 🎯 Cómo Usar
 
-Para ejecutar estos notebooks, necesitarás tener instalado Python y Jupyter Notebook/JupyterLab. Además, las siguientes bibliotecas de Python son comúnmente utilizadas:
+1. **Navegar**: Usa el panel izquierdo para seleccionar unidades y clases
+2. **Clase Seleccionada**: El indicador superior muestra qué clase está activa
+3. **Ver PDFs**: En la pestaña "📄 Material PDF", haz clic en "Pantalla Completa" para mejor vista
+4. **Código**: En la pestaña "💻 Código Python", puedes ver y editar el código
+5. **Ejecutar**: En la pestaña "▶️ Ejecutar Código", ejecuta el código y ve los resultados
 
-* NumPy
-* SciPy
-* Matplotlib
-* Pandas (posiblemente, verificar en los notebooks)
-* `scikit-learn` (para PCA, si se usa)
-* `pywavelets` (para Transformada Wavelet, si se usa)
-* [Menciona cualquier otra biblioteca específica que sea crucial]
+## 📋 Requisitos del Sistema
 
-Se recomienda crear un entorno virtual para manejar las dependencias:
+- Windows 10 o superior
+- Visor de PDF instalado (para visualización de documentos)
+- **No requiere Python** para el ejecutable
 
-```bash
-python -m venv dsp_env
-# En Linux/macOS:
-source dsp_env/bin/activate
-# En Windows:
-# dsp_env\Scripts\activate
-pip install jupyter numpy scipy matplotlib pandas scikit-learn pywavelets # [añade otras bibliotecas aquí]
+## 🛠️ Dependencias (Solo para desarrollo)
+
+- `customtkinter` - Interfaz moderna
+- `tkinter` - GUI base
+- `PyPDF2` - Manejo de PDFs
+- `matplotlib`, `numpy`, `scipy` - Para los ejemplos de DSP
+- `pyinstaller` - Para generar ejecutables
+
+## 📁 Estructura del Proyecto
+
+```
+Biomedical-DSP/
+├── main.py                    # Aplicación principal
+├── requirements.txt           # Dependencias Python
+├── setup.bat                 # Script de instalación
+├── build_exe.bat            # Script para generar ejecutable
+├── icon.ico                 # Icono de la aplicación
+├── Unidad 01 Muestreo-reconstrucción-cuantiación/
+│   ├── Clase 01 Analógico-muestreo.pdf
+│   ├── Clase 01- Señales analógicas y muestreo.py
+│   └── ...
+├── Unidad 02 Sistemas de tiempo discreto/
+├── Unidad 03 Transformadas de Fourier/
+├── Unidad 04 Diseño de filtros digitales/
+└── Unidad 05 Técnicas avanzadas/
 ```
 
-## Uso
+## 🎨 Capturas de Pantalla
 
-1.  Clona este repositorio:
-    ```bash
-    git clone [https://github.com/](https://github.com/)[TU_USUARIO_DE_GITHUB]/Biomedical-DSP.git
-    ```
-2.  Navega al directorio del repositorio:
-    ```bash
-    cd Biomedical-DSP
-    ```
-3.  Activa tu entorno virtual (si creaste uno).
-4.  Inicia Jupyter Notebook o JupyterLab:
-    ```bash
-    jupyter notebook
-    # o
-    jupyter lab
-    ```
-5.  Abre los notebooks desde el directorio `Clases/`.
+La aplicación cuenta con:
+- **Panel de navegación** organizado por unidades
+- **Visor de PDFs** integrado con controles
+- **Editor de código** con sintaxis destacada
+- **Consola de ejecución** con salida en tiempo real
 
-## Contribuciones
+## 🤝 Contribuciones
 
-Las contribuciones son bienvenidas. Si deseas contribuir, por favor:
-1.  Haz un Fork del repositorio.
-2.  Crea una nueva rama (`git checkout -b feature/nueva-funcionalidad`).
-3.  Realiza tus cambios y haz commit (`git commit -am 'Añade nueva funcionalidad'`).
-4.  Haz un Push a la rama (`git push origin feature/nueva-funcionalidad`).
-5.  Abre un Pull Request.
+Las contribuciones son bienvenidas. Por favor:
 
-## Autor
+1. Fork el proyecto
+2. Crea una rama para tu feature (`git checkout -b feature/AmazingFeature`)
+3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
+4. Push a la rama (`git push origin feature/AmazingFeature`)
+5. Abre un Pull Request
 
-* [Tu Nombre/Nombre del Grupo]
-* [Tu email o link a tu perfil de GitHub/GitLab] (Opcional)
+## 📝 Licencia
 
+Este proyecto está bajo la Licencia MIT - ver el archivo [LICENSE](LICENSE) para detalles.
+
+## 👨‍💻 Autor
+
+**Maximiliano Antonio**
+- GitHub: [@MaximilianoAntonio](https://github.com/MaximilianoAntonio)
+
+## 📞 Soporte
+
+Si tienes problemas o sugerencias:
+1. Revisa la sección de [Issues](https://github.com/MaximilianoAntonio/Biomedical-DSP/issues)
+2. Crea un nuevo issue si no encuentras tu problema
+3. Proporciona detalles sobre tu sistema y el error
+
+---
+
+**¡Feliz aprendizaje de DSP! 🧠📊**

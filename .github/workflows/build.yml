@@ -1,0 +1,68 @@
+name: Build Biomedical DSP Executable
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+    
+    - name: Run tests
+      run: python test_app.py
+    
+    - name: Build executable
+      run: pyinstaller biomedical_dsp.spec
+    
+    - name: Upload executable
+      uses: actions/upload-artifact@v3
+      with:
+        name: biomedical-dsp-windows
+        path: dist/Biomedical-DSP.exe
+    
+    - name: Create Release
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: dist/Biomedical-DSP.exe
+        name: Biomedical DSP ${{ github.ref_name }}
+        body: |
+          ## 🧠 Biomedical DSP Learning Platform ${{ github.ref_name }}
+          
+          ### 📥 Descarga e Instalación
+          1. Descarga `Biomedical-DSP.exe`
+          2. Ejecuta el archivo (no requiere instalación)
+          3. ¡Disfruta aprendiendo DSP!
+          
+          ### ✨ Características
+          - 🎯 Navegación intuitiva por unidades del curso
+          - 📄 Visualización de PDFs integrada
+          - 💻 Editor y ejecutor de código Python
+          - 🎨 Interfaz moderna y estética
+          - 🚀 Ejecutable portátil (no requiere Python)
+          
+          ### 🔧 Requisitos del Sistema
+          - Windows 10 o superior
+          - Visor de PDF (recomendado: Adobe Reader, SumatraPDF)
+          
+          ### 🐛 Reportar Problemas
+          Si encuentras algún problema, por favor [crea un issue](https://github.com/MaximilianoAntonio/Biomedical-DSP/issues).
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,77 @@
+========================================
+    BIOMEDICAL DIGITAL SIGNAL PROCESSING
+           Aplicación Portátil
+========================================
+
+🎉 ¡FELICIDADES! 
+
+Tu aplicación de escritorio está lista para usar y distribuir.
+
+📁 ARCHIVOS GENERADOS:
+======================
+
+📍 EJECUTABLE PRINCIPAL:
+   dist/Biomedical-DSP.exe  (LISTO PARA DISTRIBUIR)
+
+📍 ARCHIVOS DEL PROYECTO:
+   main.py                  - Código principal
+   utils.py                 - Utilidades
+   requirements.txt         - Dependencias
+   biomedical_dsp.spec     - Configuración PyInstaller
+   install.bat             - Instalador automático
+   test_app.py             - Script de pruebas
+   README.md               - Documentación
+
+🚀 PARA DISTRIBUIR:
+==================
+
+1. OPCIÓN SIMPLE (Solo ejecutable):
+   - Envía: dist/Biomedical-DSP.exe
+   - El usuario solo necesita ejecutar el archivo
+   - ¡Completamente portable!
+
+2. OPCIÓN COMPLETA (Para desarrollo):
+   - Envía todo el repositorio
+   - El usuario ejecuta install.bat
+   - Puede modificar y recompilar
+
+💡 CARACTERÍSTICAS PRINCIPALES:
+==============================
+
+✅ Navegación intuitiva por unidades del curso
+✅ Indicador de clase seleccionada en tiempo real
+✅ Visualización de PDFs con visor externo
+✅ Editor de código Python integrado
+✅ Ejecución de código con salida en vivo
+✅ Interfaz moderna con tema oscuro
+✅ Botones destacados para clase activa
+✅ Agrupación automática de PDFs y códigos por clase
+✅ Limpieza automática al cambiar de clase
+
+🎯 FUNCIONALIDADES TÉCNICAS:
+============================
+
+• Detección automática de estructura del curso
+• Regex inteligente para agrupación de archivos
+• Manejo de errores robusto
+• Ejecución en hilos separados
+• Gestión de memoria optimizada
+• Soporte para múltiples formatos de archivos
+
+📞 SOPORTE:
+===========
+
+Si tienes problemas:
+1. Verifica que tienes un visor de PDF instalado
+2. Revisa que el archivo .exe no esté bloqueado por antivirus
+3. Ejecuta como administrador si es necesario
+
+🏆 ¡PROYECTO COMPLETADO CON ÉXITO!
+
+Tu aplicación "Biomedical Digital Signal Processing" está 
+lista para ayudar a estudiantes a aprender DSP de manera 
+interactiva y visual.
+
+========================================
+   Desarrollado con ❤️ para educación
+========================================
