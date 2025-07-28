@@ -61,3 +61,14 @@ temp/
 
 # Archivos compilados específicos de Windows
 *.exe.backup
+
+# Scripts de build obsoletos (mantener solo los necesarios)
+setup.bat
+build_exe.bat
+run.bat
+
+# Notebooks checkpoint
+.ipynb_checkpoints/
+
+# Archivos de testing temporal
+test_*.tmp
