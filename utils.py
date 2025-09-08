@@ -46,7 +46,8 @@ def check_python_requirements():
         'customtkinter', 
         'PIL',
         'numpy',
-        'matplotlib'
+        'matplotlib',
+        'fitz'  # PyMuPDF
     ]
     
     missing_modules = []

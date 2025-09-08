@@ -17,6 +17,9 @@ import webbrowser
 import tempfile
 import shutil
 from typing import Dict, List, Tuple
+import fitz  # PyMuPDF
+from PIL import Image, ImageTk
+import numpy as np
 
 # Importar utilidades locales
 try:
@@ -54,6 +57,14 @@ class BiomedicaDSPApp:
         self.pdf_viewer_process = None
         self.selected_button = None  # Para trackear el botón seleccionado
         
+        # Variables para el visor de PDF integrado
+        self.pdf_document = None
+        self.current_page = 0
+        self.total_pages = 0
+        self.pdf_images = []  # Cache de imágenes de páginas
+        self.zoom_level = 1.0
+        self.is_fullscreen = False
+        
         # Obtener el directorio base del proyecto
         if getattr(sys, 'frozen', False):
             # Si estamos ejecutando desde un ejecutable de PyInstaller
@@ -69,6 +80,7 @@ class BiomedicaDSPApp:
         
         self.setup_ui()
         self.load_course_structure()
+        self.setup_keyboard_shortcuts()
         
     def setup_ui(self):
         """Configurar la interfaz de usuario"""
@@ -152,38 +164,151 @@ class BiomedicaDSPApp:
         pdf_controls = ctk.CTkFrame(self.pdf_tab)
         pdf_controls.pack(fill="x", padx=10, pady=10)
         
+        # Panel izquierdo de controles
+        left_controls = ctk.CTkFrame(pdf_controls)
+        left_controls.pack(side="left", fill="x", expand=True, padx=(0, 5))
+        
         self.pdf_label = ctk.CTkLabel(
-            pdf_controls,
+            left_controls,
             text="Selecciona una clase para ver el material PDF",
             font=ctk.CTkFont(size=14)
         )
         self.pdf_label.pack(side="left", padx=10, pady=10)
         
-        self.open_pdf_btn = ctk.CTkButton(
-            pdf_controls,
-            text="🔍 Abrir PDF",
-            command=self.open_pdf_external,
-            state="disabled"
+        # Panel derecho de controles
+        right_controls = ctk.CTkFrame(pdf_controls)
+        right_controls.pack(side="right", padx=(5, 0))
+        
+        # Controles de navegación
+        nav_frame = ctk.CTkFrame(right_controls)
+        nav_frame.pack(side="left", padx=5, pady=5)
+        
+        self.prev_page_btn = ctk.CTkButton(
+            nav_frame,
+            text="◀️",
+            command=self.prev_page,
+            state="disabled",
+            width=40
         )
-        self.open_pdf_btn.pack(side="right", padx=10, pady=10)
+        self.prev_page_btn.pack(side="left", padx=2, pady=5)
         
-        self.fullscreen_pdf_btn = ctk.CTkButton(
-            pdf_controls,
-            text="🖥️ Pantalla Completa",
-            command=self.open_pdf_fullscreen,
-            state="disabled"
-        )
-        self.fullscreen_pdf_btn.pack(side="right", padx=5, pady=10)
-        
-        # Frame para mostrar información del PDF
-        self.pdf_info_frame = ctk.CTkFrame(self.pdf_tab)
-        self.pdf_info_frame.pack(fill="both", expand=True, padx=10, pady=10)
-        
-        self.pdf_info_label = ctk.CTkLabel(
-            self.pdf_info_frame,
-            text="📖 El material PDF se abrirá en tu visor predeterminado",
+        self.page_label = ctk.CTkLabel(
+            nav_frame,
+            text="0/0",
             font=ctk.CTkFont(size=12),
-            wraplength=400
+            width=60
+        )
+        self.page_label.pack(side="left", padx=5, pady=5)
+        
+        self.next_page_btn = ctk.CTkButton(
+            nav_frame,
+            text="▶️",
+            command=self.next_page,
+            state="disabled",
+            width=40
+        )
+        self.next_page_btn.pack(side="left", padx=2, pady=5)
+        
+        # Controles de zoom
+        zoom_frame = ctk.CTkFrame(right_controls)
+        zoom_frame.pack(side="left", padx=5, pady=5)
+        
+        self.zoom_out_btn = ctk.CTkButton(
+            zoom_frame,
+            text="🔍-",
+            command=self.zoom_out,
+            state="disabled",
+            width=40
+        )
+        self.zoom_out_btn.pack(side="left", padx=2, pady=5)
+        
+        self.zoom_label = ctk.CTkLabel(
+            zoom_frame,
+            text="100%",
+            font=ctk.CTkFont(size=12),
+            width=50
+        )
+        self.zoom_label.pack(side="left", padx=5, pady=5)
+        
+        self.zoom_in_btn = ctk.CTkButton(
+            zoom_frame,
+            text="🔍+",
+            command=self.zoom_in,
+            state="disabled",
+            width=40
+        )
+        self.zoom_in_btn.pack(side="left", padx=2, pady=5)
+        
+        # Botón para ajustar a ventana
+        self.fit_window_btn = ctk.CTkButton(
+            zoom_frame,
+            text="📐",
+            command=self.fit_to_window,
+            state="disabled",
+            width=40
+        )
+        self.fit_window_btn.pack(side="left", padx=2, pady=5)
+        
+        # Botón para pantalla completa
+        self.fullscreen_btn = ctk.CTkButton(
+            right_controls,
+            text="🖥️ Pantalla Completa",
+            command=self.toggle_fullscreen,
+            state="disabled",
+            width=120
+        )
+        self.fullscreen_btn.pack(side="left", padx=5, pady=5)
+        
+        # Botón para abrir en externo
+        self.open_pdf_btn = ctk.CTkButton(
+            right_controls,
+            text="🔗 Externo",
+            command=self.open_pdf_external,
+            state="disabled",
+            width=80
+        )
+        self.open_pdf_btn.pack(side="left", padx=5, pady=5)
+        
+        # Frame principal para el PDF con scrollbars
+        self.pdf_main_frame = ctk.CTkFrame(self.pdf_tab)
+        self.pdf_main_frame.pack(fill="both", expand=True, padx=10, pady=10)
+        
+        # Canvas con scrollbars para el PDF
+        canvas_frame = tk.Frame(self.pdf_main_frame, bg="#2b2b2b")
+        canvas_frame.pack(fill="both", expand=True, padx=10, pady=10)
+        
+        # Crear canvas y scrollbars
+        self.pdf_canvas = tk.Canvas(
+            canvas_frame,
+            bg="#1e1e1e",
+            highlightthickness=0
+        )
+        
+        # Configurar eventos del mouse en el canvas
+        self.pdf_canvas.bind("<Button-1>", self.on_pdf_click)
+        self.pdf_canvas.bind("<MouseWheel>", self.on_mouse_wheel)
+        self.pdf_canvas.bind("<Button-4>", self.on_mouse_wheel)  # Linux scroll up
+        self.pdf_canvas.bind("<Button-5>", self.on_mouse_wheel)  # Linux scroll down
+        
+        v_scrollbar = tk.Scrollbar(canvas_frame, orient="vertical", command=self.pdf_canvas.yview)
+        h_scrollbar = tk.Scrollbar(canvas_frame, orient="horizontal", command=self.pdf_canvas.xview)
+        
+        self.pdf_canvas.configure(
+            yscrollcommand=v_scrollbar.set,
+            xscrollcommand=h_scrollbar.set
+        )
+        
+        # Pack scrollbars y canvas
+        v_scrollbar.pack(side="right", fill="y")
+        h_scrollbar.pack(side="bottom", fill="x")
+        self.pdf_canvas.pack(fill="both", expand=True)
+        
+        # Label para mostrar información cuando no hay PDF
+        self.pdf_info_label = ctk.CTkLabel(
+            self.pdf_main_frame,
+            text="📖 Selecciona una clase para ver el material PDF aquí",
+            font=ctk.CTkFont(size=16),
+            text_color=("gray50", "gray70")
         )
         self.pdf_info_label.pack(expand=True)
         
@@ -500,11 +625,11 @@ class BiomedicaDSPApp:
         if self.current_pdf_path:
             self.pdf_label.configure(text=f"📄 {self.current_pdf_path.name}")
             self.open_pdf_btn.configure(state="normal")
-            self.fullscreen_pdf_btn.configure(state="normal")
+            self.load_pdf_document()
         else:
             self.pdf_label.configure(text="❌ No hay PDF disponible para esta clase")
             self.open_pdf_btn.configure(state="disabled")
-            self.fullscreen_pdf_btn.configure(state="disabled")
+            self.close_pdf_document()
         
         # Actualizar labels de código
         if self.current_py_path:
@@ -567,11 +692,306 @@ class BiomedicaDSPApp:
         except Exception as e:
             messagebox.showerror("Error", f"No se pudo abrir el PDF: {str(e)}")
     
-    def open_pdf_fullscreen(self):
-        """Abrir PDF en pantalla completa"""
-        # Esta función intentará abrir el PDF con parámetros de pantalla completa
-        self.open_pdf_external()
-        messagebox.showinfo("Consejo", "Usa F11 o el menú Ver > Pantalla completa en tu visor de PDF")
+    def load_pdf_document(self):
+        """Cargar documento PDF en el visor integrado"""
+        
+        if not self.current_pdf_path or not self.current_pdf_path.exists():
+            return
+        
+        try:
+            # Mostrar indicador de carga
+            self.show_loading_message("Cargando PDF...")
+            
+            # Cerrar documento anterior si existe
+            self.close_pdf_document()
+            
+            # Abrir nuevo documento
+            self.pdf_document = fitz.open(str(self.current_pdf_path))
+            self.total_pages = len(self.pdf_document)
+            self.current_page = 0
+            self.zoom_level = 1.0
+            
+            # Habilitar controles
+            self.prev_page_btn.configure(state="normal")
+            self.next_page_btn.configure(state="normal")
+            self.zoom_in_btn.configure(state="normal")
+            self.zoom_out_btn.configure(state="normal")
+            self.fit_window_btn.configure(state="normal")
+            self.fullscreen_btn.configure(state="normal")
+            
+            # Ocultar el label de información
+            self.pdf_info_label.pack_forget()
+            
+            # Mostrar primera página con ajuste automático
+            self.root.after(100, self.fit_to_window)  # Delay para que el canvas tenga dimensiones
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudo cargar el PDF: {str(e)}")
+            self.close_pdf_document()
+    
+    def show_loading_message(self, message):
+        """Mostrar mensaje de carga en el canvas"""
+        
+        self.pdf_canvas.delete("all")
+        self.pdf_canvas.create_text(
+            200, 150,
+            text=message,
+            fill="white",
+            font=("Arial", 14),
+            anchor="center"
+        )
+    
+    def close_pdf_document(self):
+        """Cerrar documento PDF actual"""
+        
+        # Salir de pantalla completa si está activa
+        if self.is_fullscreen:
+            self.exit_fullscreen()
+        
+        if self.pdf_document:
+            self.pdf_document.close()
+            self.pdf_document = None
+        
+        self.current_page = 0
+        self.total_pages = 0
+        self.pdf_images.clear()
+        
+        # Limpiar canvas
+        self.pdf_canvas.delete("all")
+        
+        # Deshabilitar controles
+        self.prev_page_btn.configure(state="disabled")
+        self.next_page_btn.configure(state="disabled")
+        self.zoom_in_btn.configure(state="disabled")
+        self.zoom_out_btn.configure(state="disabled")
+        self.fit_window_btn.configure(state="disabled")
+        self.fullscreen_btn.configure(state="disabled")
+        
+        # Actualizar labels
+        self.page_label.configure(text="0/0")
+        self.zoom_label.configure(text="100%")
+        
+        # Mostrar el label de información
+        self.pdf_info_label.pack(expand=True)
+    
+    def display_current_page(self):
+        """Mostrar la página actual del PDF"""
+        
+        if not self.pdf_document or self.current_page >= self.total_pages:
+            return
+        
+        try:
+            # Obtener la página
+            page = self.pdf_document[self.current_page]
+            
+            # Crear matriz de transformación para el zoom
+            mat = fitz.Matrix(self.zoom_level, self.zoom_level)
+            
+            # Renderizar página como imagen
+            pix = page.get_pixmap(matrix=mat)
+            img_data = pix.tobytes("ppm")
+            
+            # Convertir a PIL Image y luego a PhotoImage
+            pil_image = Image.open(io.BytesIO(img_data))
+            photo = ImageTk.PhotoImage(pil_image)
+            
+            # Determinar qué canvas usar
+            if self.is_fullscreen and hasattr(self, 'pdf_canvas_fs'):
+                current_canvas = self.pdf_canvas_fs
+            else:
+                current_canvas = self.pdf_canvas
+            
+            # Obtener dimensiones del canvas y la imagen
+            current_canvas.update_idletasks()
+            canvas_width = current_canvas.winfo_width()
+            canvas_height = current_canvas.winfo_height()
+            img_width = photo.width()
+            img_height = photo.height()
+            
+            # Calcular posición para centrar la imagen
+            if img_width < canvas_width:
+                x_pos = (canvas_width - img_width) // 2
+            else:
+                x_pos = 0
+                
+            if img_height < canvas_height:
+                y_pos = (canvas_height - img_height) // 2
+            else:
+                y_pos = 0
+            
+            # Limpiar canvas y mostrar imagen
+            current_canvas.delete("all")
+            current_canvas.create_image(x_pos, y_pos, anchor="nw", image=photo)
+            
+            # Guardar referencia de la imagen para evitar garbage collection
+            current_canvas.image = photo
+            
+            # Configurar región de scroll basada en la imagen completa
+            scroll_region = (0, 0, max(img_width, canvas_width), max(img_height, canvas_height))
+            current_canvas.configure(scrollregion=scroll_region)
+            
+            # Actualizar labels de página (en ambos modos)
+            page_text = f"{self.current_page + 1}/{self.total_pages}"
+            self.page_label.configure(text=page_text)
+            
+            # Actualizar label en pantalla completa si existe
+            if self.is_fullscreen and hasattr(self, 'page_label_fs'):
+                self.page_label_fs.configure(text=page_text)
+            
+        except Exception as e:
+            print(f"Error al mostrar página: {e}")  # Log en consola en lugar de messagebox
+            
+            # Determinar qué canvas usar para mostrar error
+            if self.is_fullscreen and hasattr(self, 'pdf_canvas_fs'):
+                current_canvas = self.pdf_canvas_fs
+            else:
+                current_canvas = self.pdf_canvas
+                
+            # Intentar mostrar un mensaje de error en el canvas
+            current_canvas.delete("all")
+            current_canvas.create_text(
+                200, 100, 
+                text=f"Error al cargar página {self.current_page + 1}\n{str(e)[:100]}...",
+                fill="red",
+                font=("Arial", 12),
+                width=400
+            )
+    
+    def prev_page(self):
+        """Ir a la página anterior"""
+        
+        if self.current_page > 0:
+            self.current_page -= 1
+            self.display_current_page()
+    
+    def next_page(self):
+        """Ir a la página siguiente"""
+        
+        if self.current_page < self.total_pages - 1:
+            self.current_page += 1
+            self.display_current_page()
+    
+    def zoom_in(self):
+        """Aumentar zoom"""
+        
+        if self.zoom_level < 5.0:  # Límite máximo de zoom aumentado
+            self.zoom_level += 0.25  # Incrementos más pequeños
+            self.zoom_level = round(self.zoom_level, 2)
+            self.update_zoom_display()
+            self.display_current_page()
+    
+    def zoom_out(self):
+        """Disminuir zoom"""
+        
+        if self.zoom_level > 0.25:  # Límite mínimo de zoom
+            self.zoom_level -= 0.25  # Decrementos más pequeños
+            self.zoom_level = round(self.zoom_level, 2)
+            self.update_zoom_display()
+            self.display_current_page()
+    
+    def fit_to_window(self):
+        """Ajustar zoom para que la página se ajuste a la ventana"""
+        
+        if not self.pdf_document:
+            return
+        
+        try:
+            # Obtener dimensiones de la página
+            page = self.pdf_document[self.current_page]
+            page_rect = page.rect
+            page_width = page_rect.width
+            page_height = page_rect.height
+            
+            # Obtener dimensiones del canvas disponible
+            if self.is_fullscreen and hasattr(self, 'pdf_canvas_fs'):
+                canvas = self.pdf_canvas_fs
+            else:
+                canvas = self.pdf_canvas
+            
+            # Forzar actualización del canvas para obtener dimensiones reales
+            canvas.update_idletasks()
+            canvas_width = canvas.winfo_width()
+            canvas_height = canvas.winfo_height()
+            
+            # Si las dimensiones son muy pequeñas, usar valores por defecto
+            if canvas_width < 100:
+                canvas_width = 800
+            if canvas_height < 100:
+                canvas_height = 600
+            
+            # Calcular zoom para ajustar al ancho y alto, tomando el menor
+            zoom_width = (canvas_width - 20) / page_width  # 20px de margen
+            zoom_height = (canvas_height - 20) / page_height  # 20px de margen
+            
+            # Usar el zoom más pequeño para que quepa completo
+            self.zoom_level = min(zoom_width, zoom_height)
+            
+            # Limitar el zoom a rangos razonables
+            self.zoom_level = max(0.25, min(5.0, self.zoom_level))
+            self.zoom_level = round(self.zoom_level, 2)
+            
+            self.update_zoom_display()
+            self.display_current_page()
+            
+        except Exception as e:
+            print(f"Error al ajustar zoom: {e}")
+            # Fallback: zoom por defecto
+            self.zoom_level = 1.0
+            self.update_zoom_display()
+            self.display_current_page()
+    
+    def fit_to_width(self):
+        """Ajustar zoom para que la página se ajuste al ancho de la ventana"""
+        
+        if not self.pdf_document:
+            return
+        
+        try:
+            # Obtener dimensiones de la página
+            page = self.pdf_document[self.current_page]
+            page_rect = page.rect
+            page_width = page_rect.width
+            
+            # Obtener ancho del canvas disponible
+            if self.is_fullscreen and hasattr(self, 'pdf_canvas_fs'):
+                canvas = self.pdf_canvas_fs
+            else:
+                canvas = self.pdf_canvas
+            
+            canvas.update_idletasks()
+            canvas_width = canvas.winfo_width()
+            
+            if canvas_width < 100:
+                canvas_width = 800
+            
+            # Calcular zoom para ajustar al ancho
+            self.zoom_level = (canvas_width - 40) / page_width  # 40px de margen
+            
+            # Limitar el zoom a rangos razonables
+            self.zoom_level = max(0.25, min(5.0, self.zoom_level))
+            self.zoom_level = round(self.zoom_level, 2)
+            
+            self.update_zoom_display()
+            self.display_current_page()
+            
+        except Exception as e:
+            print(f"Error al ajustar zoom al ancho: {e}")
+            self.zoom_level = 1.0
+            self.update_zoom_display()
+            self.display_current_page()
+    
+    def update_zoom_display(self):
+        """Actualizar el display del zoom"""
+        
+        zoom_percent = int(self.zoom_level * 100)
+        zoom_text = f"{zoom_percent}%"
+        
+        # Actualizar label principal
+        self.zoom_label.configure(text=zoom_text)
+        
+        # Actualizar label en pantalla completa si existe
+        if self.is_fullscreen and hasattr(self, 'zoom_label_fs'):
+            self.zoom_label_fs.configure(text=zoom_text)
     
     def execute_code(self):
         """Ejecutar el código Python actual"""
@@ -680,9 +1100,275 @@ class BiomedicaDSPApp:
         self.output_text.delete(1.0, tk.END)
         self.output_text.configure(state="disabled")
     
+    def setup_keyboard_shortcuts(self):
+        """Configurar atajos de teclado para la aplicación"""
+        
+        # Atajos para navegación del PDF
+        self.root.bind('<Left>', lambda e: self.prev_page())
+        self.root.bind('<Right>', lambda e: self.next_page())
+        self.root.bind('<Up>', lambda e: self.zoom_in())
+        self.root.bind('<Down>', lambda e: self.zoom_out())
+        
+        # Atajos adicionales
+        self.root.bind('<Control-o>', lambda e: self.open_pdf_external())
+        self.root.bind('<Control-s>', lambda e: self.save_code_changes())
+        self.root.bind('<F5>', lambda e: self.execute_code())
+        
+        # Atajos para navegación por páginas con números
+        self.root.bind('<Prior>', lambda e: self.prev_page())  # Page Up
+        self.root.bind('<Next>', lambda e: self.next_page())   # Page Down
+        
+        # Zoom con Ctrl +/-
+        self.root.bind('<Control-plus>', lambda e: self.zoom_in())
+        self.root.bind('<Control-minus>', lambda e: self.zoom_out())
+        self.root.bind('<Control-0>', lambda e: self.reset_zoom())
+        self.root.bind('<Control-equal>', lambda e: self.zoom_in())  # Para teclados sin numpad
+        
+        # Atajos para ajuste de zoom
+        self.root.bind('<Control-w>', lambda e: self.fit_to_width())  # Ajustar al ancho
+        self.root.bind('<Control-f>', lambda e: self.fit_to_window())  # Ajustar a ventana
+        
+        # Pantalla completa
+        self.root.bind('<F11>', lambda e: self.toggle_fullscreen())
+        self.root.bind('<Control-Return>', lambda e: self.toggle_fullscreen())
+    
+    def reset_zoom(self):
+        """Resetear zoom al 100%"""
+        
+        if self.pdf_document:
+            self.zoom_level = 1.0
+            self.update_zoom_display()
+            self.display_current_page()
+    
+    def on_pdf_click(self, event):
+        """Manejar clicks en el PDF (navegación por páginas)"""
+        
+        if not self.pdf_document:
+            return
+        
+        # Obtener el ancho del canvas
+        canvas_width = self.pdf_canvas.winfo_width()
+        
+        # Si click en la mitad izquierda, ir a página anterior
+        if event.x < canvas_width / 2:
+            self.prev_page()
+        # Si click en la mitad derecha, ir a página siguiente
+        else:
+            self.next_page()
+    
+    def on_mouse_wheel(self, event):
+        """Manejar scroll del mouse para zoom y navegación"""
+        
+        if not self.pdf_document:
+            return
+        
+        # Determinar qué canvas usar
+        if self.is_fullscreen and hasattr(self, 'pdf_canvas_fs'):
+            current_canvas = self.pdf_canvas_fs
+        else:
+            current_canvas = self.pdf_canvas
+        
+        # Verificar si Ctrl está presionado para zoom
+        if event.state & 0x4:  # Ctrl presionado
+            if event.delta > 0 or event.num == 4:  # Scroll up
+                self.zoom_in()
+            elif event.delta < 0 or event.num == 5:  # Scroll down
+                self.zoom_out()
+        else:
+            # Verificar si Shift está presionado para scroll horizontal
+            if event.state & 0x1:  # Shift presionado
+                if event.delta > 0 or event.num == 4:  # Scroll left
+                    current_canvas.xview_scroll(-1, "units")
+                elif event.delta < 0 or event.num == 5:  # Scroll right
+                    current_canvas.xview_scroll(1, "units")
+            else:
+                # Scroll vertical normal
+                if event.delta > 0 or event.num == 4:  # Scroll up
+                    current_canvas.yview_scroll(-1, "units")
+                elif event.delta < 0 or event.num == 5:  # Scroll down
+                    current_canvas.yview_scroll(1, "units")
+
+    # ...existing code...
+    
     def run(self):
         """Ejecutar la aplicación"""
+        # Configurar el manejo del cierre de la aplicación
+        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
         self.root.mainloop()
+    
+    def on_closing(self):
+        """Manejar el cierre de la aplicación"""
+        # Limpiar recursos del PDF
+        self.close_pdf_document()
+        
+        # Cerrar la aplicación
+        self.root.destroy()
+
+    def toggle_fullscreen(self):
+        """Alternar entre modo normal y pantalla completa del PDF"""
+        
+        if not self.pdf_document:
+            return
+        
+        if not self.is_fullscreen:
+            # Entrar en modo pantalla completa
+            self.enter_fullscreen()
+        else:
+            # Salir del modo pantalla completa
+            self.exit_fullscreen()
+    
+    def enter_fullscreen(self):
+        """Entrar en modo pantalla completa"""
+        
+        # Crear ventana de pantalla completa
+        self.fullscreen_window = tk.Toplevel(self.root)
+        self.fullscreen_window.title("PDF - Pantalla Completa")
+        self.fullscreen_window.attributes('-fullscreen', True)
+        self.fullscreen_window.configure(bg='#1e1e1e')
+        
+        # Configurar escape para salir
+        self.fullscreen_window.bind('<Escape>', lambda e: self.exit_fullscreen())
+        self.fullscreen_window.bind('<F11>', lambda e: self.exit_fullscreen())
+        
+        # Frame principal en pantalla completa
+        fullscreen_frame = tk.Frame(self.fullscreen_window, bg='#1e1e1e')
+        fullscreen_frame.pack(fill="both", expand=True)
+        
+        # Controles superiores en pantalla completa
+        controls_frame = tk.Frame(fullscreen_frame, bg='#2b2b2b', height=50)
+        controls_frame.pack(fill="x", pady=5, padx=10)
+        controls_frame.pack_propagate(False)
+        
+        # Botón para salir de pantalla completa
+        exit_btn = ctk.CTkButton(
+            controls_frame,
+            text="❌ Salir (ESC)",
+            command=self.exit_fullscreen,
+            width=100,
+            height=30
+        )
+        exit_btn.pack(side="left", padx=5, pady=10)
+        
+        # Controles de navegación en pantalla completa
+        nav_frame_fs = tk.Frame(controls_frame, bg='#2b2b2b')
+        nav_frame_fs.pack(side="left", padx=20)
+        
+        prev_btn_fs = ctk.CTkButton(
+            nav_frame_fs,
+            text="◀️",
+            command=self.prev_page,
+            width=40,
+            height=30
+        )
+        prev_btn_fs.pack(side="left", padx=2, pady=10)
+        
+        self.page_label_fs = ctk.CTkLabel(
+            nav_frame_fs,
+            text=f"{self.current_page + 1}/{self.total_pages}",
+            font=ctk.CTkFont(size=12),
+            width=60
+        )
+        self.page_label_fs.pack(side="left", padx=5, pady=10)
+        
+        next_btn_fs = ctk.CTkButton(
+            nav_frame_fs,
+            text="▶️",
+            command=self.next_page,
+            width=40,
+            height=30
+        )
+        next_btn_fs.pack(side="left", padx=2, pady=10)
+        
+        # Controles de zoom en pantalla completa
+        zoom_frame_fs = tk.Frame(controls_frame, bg='#2b2b2b')
+        zoom_frame_fs.pack(side="left", padx=20)
+        
+        zoom_out_btn_fs = ctk.CTkButton(
+            zoom_frame_fs,
+            text="🔍-",
+            command=self.zoom_out,
+            width=40,
+            height=30
+        )
+        zoom_out_btn_fs.pack(side="left", padx=2, pady=10)
+        
+        self.zoom_label_fs = ctk.CTkLabel(
+            zoom_frame_fs,
+            text=f"{int(self.zoom_level * 100)}%",
+            font=ctk.CTkFont(size=12),
+            width=50
+        )
+        self.zoom_label_fs.pack(side="left", padx=5, pady=10)
+        
+        zoom_in_btn_fs = ctk.CTkButton(
+            zoom_frame_fs,
+            text="🔍+",
+            command=self.zoom_in,
+            width=40,
+            height=30
+        )
+        zoom_in_btn_fs.pack(side="left", padx=2, pady=10)
+        
+        fit_window_btn_fs = ctk.CTkButton(
+            zoom_frame_fs,
+            text="📐",
+            command=self.fit_to_window,
+            width=40,
+            height=30
+        )
+        fit_window_btn_fs.pack(side="left", padx=2, pady=10)
+        
+        # Canvas para el PDF en pantalla completa
+        canvas_frame_fs = tk.Frame(fullscreen_frame, bg='#1e1e1e')
+        canvas_frame_fs.pack(fill="both", expand=True, padx=10, pady=10)
+        
+        self.pdf_canvas_fs = tk.Canvas(
+            canvas_frame_fs,
+            bg="#1e1e1e",
+            highlightthickness=0
+        )
+        
+        # Configurar eventos del mouse en canvas de pantalla completa
+        self.pdf_canvas_fs.bind("<Button-1>", self.on_pdf_click)
+        self.pdf_canvas_fs.bind("<MouseWheel>", self.on_mouse_wheel)
+        self.pdf_canvas_fs.bind("<Button-4>", self.on_mouse_wheel)
+        self.pdf_canvas_fs.bind("<Button-5>", self.on_mouse_wheel)
+        
+        # Scrollbars para pantalla completa
+        v_scrollbar_fs = tk.Scrollbar(canvas_frame_fs, orient="vertical", command=self.pdf_canvas_fs.yview)
+        h_scrollbar_fs = tk.Scrollbar(canvas_frame_fs, orient="horizontal", command=self.pdf_canvas_fs.xview)
+        
+        self.pdf_canvas_fs.configure(
+            yscrollcommand=v_scrollbar_fs.set,
+            xscrollcommand=h_scrollbar_fs.set
+        )
+        
+        v_scrollbar_fs.pack(side="right", fill="y")
+        h_scrollbar_fs.pack(side="bottom", fill="x")
+        self.pdf_canvas_fs.pack(fill="both", expand=True)
+        
+        # Cambiar estado
+        self.is_fullscreen = True
+        self.fullscreen_btn.configure(text="📱 Ventana")
+        
+        # Renderizar página actual en pantalla completa
+        self.display_current_page()
+        
+        # Hacer focus en la ventana de pantalla completa
+        self.fullscreen_window.focus_set()
+    
+    def exit_fullscreen(self):
+        """Salir del modo pantalla completa"""
+        
+        if hasattr(self, 'fullscreen_window'):
+            self.fullscreen_window.destroy()
+            delattr(self, 'fullscreen_window')
+        
+        self.is_fullscreen = False
+        self.fullscreen_btn.configure(text="🖥️ Pantalla Completa")
+        
+        # Renderizar página actual en ventana normal
+        self.display_current_page()
 
 def main():
     """Función principal"""

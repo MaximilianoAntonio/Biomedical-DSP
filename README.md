@@ -1,8 +1,8 @@
 # Procesamiento Digital de Señales Biomédicas
 
-Una aplicación de escritorio para estudiar Procesamiento Digital de Señales Biomédicas con materiales de curso integrados y ejecución de código interactiva.
+Una aplicación de escritorio para estudiar Procesamiento Digital de Señales Biomédicas con materiales de curso integrados, visor PDF integrado y ejecución de código interactiva.
 
-##  Descarga Rápida
+## 🚀 Descarga Rápida
 
 ### Opción 1: Descargar Release (Recomendado)
 1. Ve a la página de [Releases](https://github.com/MaximilianoAntonio/Biomedical-DSP/releases)
@@ -17,35 +17,49 @@ install.bat
 python main.py
 ```
 
-##  Características 
+## ✨ Características 
 
--  **Navegación Intuitiva**: Unidades de curso organizadas jerárquicamente
-- **Visor PDF**: Documentos en pantalla completa
--  **Editor Python**: Resaltado de sintaxis y ejecución en tiempo real
-- **Interfaz**: Tema oscuro optimizado para estudio
-- **Ejecutable Portátil**: Sin instalación requerida
-- **Multi-hilo**: Ejecución no bloqueante
+- 📚 **Navegación Intuitiva**: Unidades de curso organizadas jerárquicamente
+- 📄 **Visor PDF Integrado**: PDFs directamente en la aplicación con zoom y navegación
+- 💻 **Editor Python**: Resaltado de sintaxis y ejecución en tiempo real
+- 🎨 **Interfaz Moderna**: Tema oscuro optimizado para estudio prolongado
+- 📦 **Ejecutable Portátil**: Sin instalación requerida
+- ⚡ **Multi-hilo**: Ejecución no bloqueante
+- ⌨️ **Atajos de Teclado**: Navegación rápida y eficiente
 
-## Uso Rápido
+## 🎯 Uso Rápido
 
 1. **Navegación**: Panel izquierdo para explorar unidades y clases
-2. **PDFs**: Pestaña "Material PDF" para documentos del curso
+2. **PDFs**: Pestaña "Material PDF" - ¡Ahora con visor integrado!
+   - Navegación con botones o flechas del teclado
+   - Zoom con botones o Ctrl + scroll
+   - Click para avanzar/retroceder páginas
 3. **Código**: Pestaña "Código Python" para ejemplos editables
 4. **Ejecución**: Pestaña "Ejecutar Código" para ver resultados
 
-## Requisitos
+## ⌨️ Atajos de Teclado
+
+- **← →**: Navegar páginas del PDF
+- **↑ ↓**: Zoom del PDF
+- **Ctrl + O**: Abrir PDF en aplicación externa
+- **Ctrl + S**: Guardar código
+- **F5**: Ejecutar código
+- **Ctrl + 0**: Resetear zoom
+
+## 📋 Requisitos
 
 - Windows 10 o posterior
 - 4GB RAM mínimo
-- 100MB espacio libre
+- 200MB espacio libre
 
 ## 🛠️ Para Desarrolladores
 
 ### Dependencias
-- `customtkinter`, `matplotlib`, `numpy`, `scipy`, `PyPDF2`
+- `customtkinter`, `PyMuPDF`, `Pillow`, `matplotlib`, `numpy`, `scipy`
 
 ### Construcción
 ```bash
+pip install -r requirements.txt
 python -m PyInstaller biomedical_dsp.spec
 ```
 
