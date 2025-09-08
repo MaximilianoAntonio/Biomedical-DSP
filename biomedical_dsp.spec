@@ -50,8 +50,7 @@ a = Analysis(
         'matplotlib.figure',
         'matplotlib.pyplot',
         'numpy',
-        'fitz',
-        'PyMuPDF',
+        'fitz',  # PyMuPDF
         'threading',
         'subprocess',
         'pathlib',
