@@ -64,8 +64,14 @@ temp/
 
 # Scripts de build obsoletos (mantener solo los necesarios)
 setup.bat
-build_exe.bat
 run.bat
+
+# Archivos específicos del proyecto de distribución
+distribution/
+*.zip
+test_*.py
+demo_*.py
+build_advanced.bat
 
 # Notebooks checkpoint
 .ipynb_checkpoints/
