@@ -70,6 +70,7 @@ run.bat
 distribution/
 *.zip
 test_*.py
+!test_app_ci.py
 demo_*.py
 build_advanced.bat
 
