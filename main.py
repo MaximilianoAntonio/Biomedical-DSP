@@ -28,6 +28,13 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import warnings
 warnings.filterwarnings('ignore')  # Suprimir advertencias de matplotlib
 
+# Detectar tema del sistema (opcional)
+try:
+    import darkdetect
+    SYSTEM_THEME_DETECTION = True
+except ImportError:
+    SYSTEM_THEME_DETECTION = False
+
 # Importar utilidades locales
 try:
     from utils import get_resource_path, open_file_with_default_app, check_python_requirements
@@ -47,16 +54,45 @@ except ImportError:
     def check_python_requirements():
         return []
 
-# Configuración de CustomTkinter
-ctk.set_appearance_mode("dark")  # "dark" o "light"
-ctk.set_default_color_theme("blue")  # "blue", "green", "dark-blue"
+# Configuración de CustomTkinter (se configurará dinámicamente en la clase)
+# Se configurará el tema en la inicialización de la aplicación
 
 class BiomedicaDSPApp:
     def __init__(self):
+        # Obtener el directorio base del proyecto primero
+        if getattr(sys, 'frozen', False):
+            # Si estamos ejecutando desde un ejecutable de PyInstaller
+            self.base_dir = Path(sys._MEIPASS)
+        else:
+            # Si estamos ejecutando desde el script Python
+            self.base_dir = Path(__file__).parent
+        
+        # Detectar tema del sistema automáticamente
+        if SYSTEM_THEME_DETECTION:
+            try:
+                system_theme = darkdetect.theme()
+                self.current_theme = "dark" if system_theme == "Dark" else "light"
+            except:
+                self.current_theme = "dark"  # Fallback
+        else:
+            self.current_theme = "dark"  # Por defecto
+            
+        self.current_color_theme = "blue"  # "blue", "green", "dark-blue"
+        
+        # Cargar preferencias guardadas (sobrescribe la detección automática)
+        self.load_theme_preferences()
+        
+        # Configurar CustomTkinter
+        ctk.set_appearance_mode(self.current_theme)
+        ctk.set_default_color_theme(self.current_color_theme)
+        
         self.root = ctk.CTk()
         self.root.title("Biomedical Digital Signal Processing")
         self.root.geometry("1400x900")
         self.root.minsize(1200, 800)
+        
+        # Configurar fuentes mejoradas
+        self.setup_fonts()
         
         # Variables
         self.current_pdf_path = None
@@ -76,14 +112,6 @@ class BiomedicaDSPApp:
         self.execution_globals = {}  # Namespace global para ejecución
         self.matplotlib_figures = []  # Lista de figuras de matplotlib
         
-        # Obtener el directorio base del proyecto
-        if getattr(sys, 'frozen', False):
-            # Si estamos ejecutando desde un ejecutable de PyInstaller
-            self.base_dir = Path(sys._MEIPASS)
-        else:
-            # Si estamos ejecutando desde el script Python
-            self.base_dir = Path(__file__).parent
-        
         # Configurar icono si existe
         icon_path = self.base_dir / "icon.ico"
         if icon_path.exists():
@@ -92,25 +120,201 @@ class BiomedicaDSPApp:
         self.setup_ui()
         self.load_course_structure()
         self.setup_keyboard_shortcuts()
+    
+    def setup_fonts(self):
+        """Configurar fuentes mejoradas para mejor legibilidad"""
+        try:
+            # Detectar sistema operativo para mejores fuentes
+            if sys.platform == "win32":
+                default_font = "Segoe UI"
+                code_font = "Consolas"
+            elif sys.platform == "darwin":  # macOS
+                default_font = "SF Pro Display"
+                code_font = "Monaco"
+            else:  # Linux y otros
+                default_font = "Ubuntu"
+                code_font = "Ubuntu Mono"
+            
+            # Fuentes principales para diferentes elementos
+            self.fonts = {
+                'title': ctk.CTkFont(family=default_font, size=28, weight="bold"),
+                'subtitle': ctk.CTkFont(family=default_font, size=18, weight="bold"),
+                'header': ctk.CTkFont(family=default_font, size=16, weight="bold"),
+                'body': ctk.CTkFont(family=default_font, size=14),
+                'body_small': ctk.CTkFont(family=default_font, size=12),
+                'code': ctk.CTkFont(family=code_font, size=12),
+                'code_large': ctk.CTkFont(family=code_font, size=14),
+                'button': ctk.CTkFont(family=default_font, size=13, weight="bold"),
+                'button_small': ctk.CTkFont(family=default_font, size=11, weight="bold")
+            }
+        except Exception as e:
+            # Fallback a fuentes por defecto si las específicas no están disponibles
+            print(f"Warning: Could not load system fonts, using defaults: {e}")
+            self.fonts = {
+                'title': ctk.CTkFont(size=28, weight="bold"),
+                'subtitle': ctk.CTkFont(size=18, weight="bold"),
+                'header': ctk.CTkFont(size=16, weight="bold"),
+                'body': ctk.CTkFont(size=14),
+                'body_small': ctk.CTkFont(size=12),
+                'code': ctk.CTkFont(size=12),
+                'code_large': ctk.CTkFont(size=14),
+                'button': ctk.CTkFont(size=13, weight="bold"),
+                'button_small': ctk.CTkFont(size=11, weight="bold")
+            }
+    
+    def save_theme_preferences(self):
+        """Guardar preferencias de tema en un archivo local"""
+        try:
+            config_dir = self.base_dir / "config"
+            config_dir.mkdir(exist_ok=True)
+            config_file = config_dir / "theme_config.txt"
+            
+            with open(config_file, 'w', encoding='utf-8') as f:
+                f.write(f"theme={self.current_theme}\n")
+                f.write(f"color_theme={self.current_color_theme}\n")
+        except Exception as e:
+            print(f"Warning: Could not save theme preferences: {e}")
+    
+    def load_theme_preferences(self):
+        """Cargar preferencias de tema guardadas"""
+        try:
+            config_file = self.base_dir / "config" / "theme_config.txt"
+            if config_file.exists():
+                with open(config_file, 'r', encoding='utf-8') as f:
+                    for line in f:
+                        line = line.strip()
+                        if line.startswith("theme="):
+                            self.current_theme = line.split("=")[1]
+                        elif line.startswith("color_theme="):
+                            self.current_color_theme = line.split("=")[1]
+        except Exception as e:
+            print(f"Warning: Could not load theme preferences: {e}")
+    
+    def toggle_theme(self):
+        """Cambiar entre tema claro y oscuro"""
+        self.current_theme = "light" if self.current_theme == "dark" else "dark"
+        ctk.set_appearance_mode(self.current_theme)
+        
+        # Guardar preferencias
+        self.save_theme_preferences()
+        
+        # Actualizar colores específicos según el tema
+        self.update_theme_colors()
+        
+        # Actualizar el texto del botón de tema
+        if hasattr(self, 'theme_btn'):
+            theme_text = "🌙 Modo Oscuro" if self.current_theme == "light" else "☀️ Modo Claro"
+            self.theme_btn.configure(text=theme_text)
+    
+    def change_color_theme(self, color_theme):
+        """Cambiar el tema de color"""
+        self.current_color_theme = color_theme
+        
+        # Guardar preferencias
+        self.save_theme_preferences()
+        
+        # Mostrar mensaje más informativo
+        response = messagebox.askyesno(
+            "Cambio de Tema de Color", 
+            f"El tema de color '{color_theme}' se aplicará completamente al reiniciar la aplicación.\n\n"
+            "¿Deseas reiniciar ahora?"
+        )
+        
+        if response:
+            self.restart_application()
+    
+    def restart_application(self):
+        """Reiniciar la aplicación para aplicar cambios de tema"""
+        try:
+            # Guardar el estado actual antes de reiniciar
+            self.save_theme_preferences()
+            
+            # Cerrar la aplicación actual
+            self.root.quit()
+            self.root.destroy()
+            
+            # Reiniciar el script
+            python = sys.executable
+            os.execl(python, python, *sys.argv)
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudo reiniciar la aplicación: {e}")
+    
+    def update_theme_colors(self):
+        """Actualizar colores específicos según el tema actual"""
+        if self.current_theme == "dark":
+            canvas_bg = "#1e1e1e"
+            canvas_frame_bg = "#2b2b2b"
+        else:
+            canvas_bg = "#ffffff"
+            canvas_frame_bg = "#f0f0f0"
+        
+        # Actualizar canvas del PDF si existe
+        if hasattr(self, 'pdf_canvas'):
+            self.pdf_canvas.configure(bg=canvas_bg)
+            # Buscar el frame padre del canvas y actualizarlo
+            canvas_parent = self.pdf_canvas.master
+            if canvas_parent:
+                canvas_parent.configure(bg=canvas_frame_bg)
         
     def setup_ui(self):
-        """Configurar la interfaz de usuario"""
+        """Configurar la interfaz de usuario con diseño mejorado"""
         
         # Frame principal
         self.main_frame = ctk.CTkFrame(self.root)
         self.main_frame.pack(fill="both", expand=True, padx=10, pady=10)
         
-        # Frame superior - Título y navegación
+        # Frame superior - Título y controles de tema
         self.header_frame = ctk.CTkFrame(self.main_frame)
         self.header_frame.pack(fill="x", padx=10, pady=10)
         
-        # Título
+        # Frame para título y controles en la misma línea
+        title_controls_frame = ctk.CTkFrame(self.header_frame)
+        title_controls_frame.pack(fill="x", padx=20, pady=15)
+        
+        # Título (lado izquierdo)
         self.title_label = ctk.CTkLabel(
-            self.header_frame, 
+            title_controls_frame, 
             text="🧠 Biomedical Digital Signal Processing",
-            font=ctk.CTkFont(size=24, weight="bold")
+            font=self.fonts['title']
         )
-        self.title_label.pack(pady=15)
+        self.title_label.pack(side="left", pady=5)
+        
+        # Controles de tema (lado derecho)
+        theme_controls_frame = ctk.CTkFrame(title_controls_frame)
+        theme_controls_frame.pack(side="right", padx=10)
+        
+        # Botón para cambiar tema claro/oscuro
+        theme_text = "☀️ Modo Claro" if self.current_theme == "dark" else "🌙 Modo Oscuro"
+        self.theme_btn = ctk.CTkButton(
+            theme_controls_frame,
+            text=theme_text,
+            command=self.toggle_theme,
+            width=120,
+            height=35,
+            font=self.fonts['button_small']
+        )
+        self.theme_btn.pack(side="left", padx=5, pady=5)
+        
+        # Menú desplegable para temas de color
+        self.color_theme_var = ctk.StringVar(value=self.current_color_theme)
+        self.color_theme_menu = ctk.CTkOptionMenu(
+            theme_controls_frame,
+            values=["blue", "green", "dark-blue"],
+            variable=self.color_theme_var,
+            command=self.change_color_theme,
+            width=100,
+            height=35,
+            font=self.fonts['button_small']
+        )
+        self.color_theme_menu.pack(side="left", padx=5, pady=5)
+        
+        # Etiqueta para el menú de colores
+        color_label = ctk.CTkLabel(
+            theme_controls_frame,
+            text="Color:",
+            font=self.fonts['body_small']
+        )
+        color_label.pack(side="left", padx=(0, 5), pady=5)
         
         # Indicador de clase seleccionada
         self.selected_class_frame = ctk.CTkFrame(self.header_frame)
@@ -119,42 +323,46 @@ class BiomedicaDSPApp:
         self.selected_class_label = ctk.CTkLabel(
             self.selected_class_frame,
             text="📖 Selecciona una clase del curso para comenzar",
-            font=ctk.CTkFont(size=14),
+            font=self.fonts['header'],
             text_color=("#1f538d", "#4a9eff")  # Azul en modo oscuro y claro
         )
-        self.selected_class_label.pack(pady=10)
+        self.selected_class_label.pack(pady=15)
         
         # Frame de contenido principal
         self.content_frame = ctk.CTkFrame(self.main_frame)
         self.content_frame.pack(fill="both", expand=True, padx=10, pady=10)
         
-        # Panel izquierdo - Navegación
+        # Panel izquierdo - Navegación mejorada
         self.nav_frame = ctk.CTkFrame(self.content_frame)
         self.nav_frame.pack(side="left", fill="y", padx=(10, 5), pady=10)
         
-        # Título de navegación
+        # Título de navegación con mejor estilo
         nav_title = ctk.CTkLabel(
             self.nav_frame,
             text="📚 Unidades del Curso",
-            font=ctk.CTkFont(size=16, weight="bold")
+            font=self.fonts['subtitle']
         )
-        nav_title.pack(pady=10)
+        nav_title.pack(pady=15)
         
-        # Scrollable frame para navegación
+        # Scrollable frame para navegación con ancho fijo mejorado
         self.nav_scroll = ctk.CTkScrollableFrame(
             self.nav_frame,
-            width=300,
-            height=600
+            width=320,
+            height=600,
+            corner_radius=10
         )
-        self.nav_scroll.pack(fill="both", expand=True, padx=10, pady=10)
+        self.nav_scroll.pack(fill="both", expand=True, padx=15, pady=10)
         
-        # Panel derecho - Contenido
-        self.right_panel = ctk.CTkFrame(self.content_frame)
+        # Panel derecho - Contenido con mejor estilo
+        self.right_panel = ctk.CTkFrame(self.content_frame, corner_radius=10)
         self.right_panel.pack(side="right", fill="both", expand=True, padx=(5, 10), pady=10)
         
-        # Tabs para PDF y Código
-        self.tabview = ctk.CTkTabview(self.right_panel)
-        self.tabview.pack(fill="both", expand=True, padx=10, pady=10)
+        # Tabs para PDF y Código con mejor estilo
+        self.tabview = ctk.CTkTabview(self.right_panel, corner_radius=10)
+        self.tabview.pack(fill="both", expand=True, padx=15, pady=15)
+        
+        # Configurar fuentes para las tabs
+        self.tabview._segmented_button.configure(font=self.fonts['button'])
         
         # Tab PDF
         self.pdf_tab = self.tabview.add("📄 Material PDF")
@@ -165,86 +373,94 @@ class BiomedicaDSPApp:
         self.setup_unified_code_tab()
         
     def setup_pdf_tab(self):
-        """Configurar el tab de visualización de PDF"""
+        """Configurar el tab de visualización de PDF con diseño mejorado"""
         
-        # Frame de controles PDF
-        pdf_controls = ctk.CTkFrame(self.pdf_tab)
-        pdf_controls.pack(fill="x", padx=10, pady=10)
+        # Frame de controles PDF con mejor estilo
+        pdf_controls = ctk.CTkFrame(self.pdf_tab, corner_radius=8)
+        pdf_controls.pack(fill="x", padx=15, pady=15)
         
         # Panel izquierdo de controles
-        left_controls = ctk.CTkFrame(pdf_controls)
-        left_controls.pack(side="left", fill="x", expand=True, padx=(0, 5))
+        left_controls = ctk.CTkFrame(pdf_controls, fg_color="transparent")
+        left_controls.pack(side="left", fill="x", expand=True, padx=(15, 5), pady=10)
         
         self.pdf_label = ctk.CTkLabel(
             left_controls,
             text="Selecciona una clase para ver el material PDF",
-            font=ctk.CTkFont(size=14)
+            font=self.fonts['body']
         )
         self.pdf_label.pack(side="left", padx=10, pady=10)
         
-        # Panel derecho de controles
-        right_controls = ctk.CTkFrame(pdf_controls)
-        right_controls.pack(side="right", padx=(5, 0))
+        # Panel derecho de controles con mejor organización
+        right_controls = ctk.CTkFrame(pdf_controls, fg_color="transparent")
+        right_controls.pack(side="right", padx=(5, 15), pady=10)
         
-        # Controles de navegación
-        nav_frame = ctk.CTkFrame(right_controls)
+        # Controles de navegación con mejor estilo
+        nav_frame = ctk.CTkFrame(right_controls, corner_radius=6)
         nav_frame.pack(side="left", padx=5, pady=5)
         
         self.prev_page_btn = ctk.CTkButton(
             nav_frame,
-            text="◀️",
+            text="◀",
             command=self.prev_page,
             state="disabled",
-            width=40
+            width=45,
+            height=35,
+            font=self.fonts['button']
         )
-        self.prev_page_btn.pack(side="left", padx=2, pady=5)
+        self.prev_page_btn.pack(side="left", padx=3, pady=8)
         
         self.page_label = ctk.CTkLabel(
             nav_frame,
             text="0/0",
-            font=ctk.CTkFont(size=12),
-            width=60
+            font=self.fonts['body_small'],
+            width=70
         )
-        self.page_label.pack(side="left", padx=5, pady=5)
+        self.page_label.pack(side="left", padx=8, pady=8)
         
         self.next_page_btn = ctk.CTkButton(
             nav_frame,
-            text="▶️",
+            text="▶",
             command=self.next_page,
             state="disabled",
-            width=40
+            width=45,
+            height=35,
+            font=self.fonts['button']
         )
-        self.next_page_btn.pack(side="left", padx=2, pady=5)
+        self.next_page_btn.pack(side="left", padx=3, pady=8)
         
-        # Controles de zoom
-        zoom_frame = ctk.CTkFrame(right_controls)
+        # Controles de zoom con mejor estilo
+        zoom_frame = ctk.CTkFrame(right_controls, corner_radius=6)
         zoom_frame.pack(side="left", padx=5, pady=5)
         
         self.zoom_out_btn = ctk.CTkButton(
             zoom_frame,
-            text="🔍-",
+            text="🔍−",
             command=self.zoom_out,
             state="disabled",
-            width=40
+            width=45,
+            height=35,
+            font=self.fonts['button']
         )
-        self.zoom_out_btn.pack(side="left", padx=2, pady=5)
+        self.zoom_out_btn.pack(side="left", padx=3, pady=8)
         
         self.zoom_label = ctk.CTkLabel(
             zoom_frame,
             text="100%",
-            font=ctk.CTkFont(size=12),
-            width=50
+            font=self.fonts['body_small'],
+            width=60
         )
-        self.zoom_label.pack(side="left", padx=5, pady=5)
+        self.zoom_label.pack(side="left", padx=8, pady=8)
         
         self.zoom_in_btn = ctk.CTkButton(
             zoom_frame,
             text="🔍+",
             command=self.zoom_in,
             state="disabled",
-            width=40
+            width=45,
+            height=35,
+            font=self.fonts['button']
         )
-        self.zoom_in_btn.pack(side="left", padx=2, pady=5)
+        self.zoom_in_btn.pack(side="left", padx=3, pady=8)
         
         # Botón para ajustar a ventana
         self.fit_window_btn = ctk.CTkButton(
@@ -252,43 +468,57 @@ class BiomedicaDSPApp:
             text="📐",
             command=self.fit_to_window,
             state="disabled",
-            width=40
+            width=45,
+            height=35,
+            font=self.fonts['button']
         )
-        self.fit_window_btn.pack(side="left", padx=2, pady=5)
+        self.fit_window_btn.pack(side="left", padx=3, pady=8)
+        
+        # Botones adicionales con mejor estilo
+        extra_controls = ctk.CTkFrame(right_controls, corner_radius=6)
+        extra_controls.pack(side="left", padx=5, pady=5)
         
         # Botón para pantalla completa
         self.fullscreen_btn = ctk.CTkButton(
-            right_controls,
+            extra_controls,
             text="🖥️ Pantalla Completa",
             command=self.toggle_fullscreen,
             state="disabled",
-            width=120
+            width=140,
+            height=35,
+            font=self.fonts['button_small']
         )
-        self.fullscreen_btn.pack(side="left", padx=5, pady=5)
+        self.fullscreen_btn.pack(side="left", padx=3, pady=8)
         
         # Botón para abrir en externo
         self.open_pdf_btn = ctk.CTkButton(
-            right_controls,
+            extra_controls,
             text="🔗 Externo",
             command=self.open_pdf_external,
             state="disabled",
-            width=80
+            width=90,
+            height=35,
+            font=self.fonts['button_small']
         )
-        self.open_pdf_btn.pack(side="left", padx=5, pady=5)
+        self.open_pdf_btn.pack(side="left", padx=3, pady=8)
         
-        # Frame principal para el PDF con scrollbars
-        self.pdf_main_frame = ctk.CTkFrame(self.pdf_tab)
-        self.pdf_main_frame.pack(fill="both", expand=True, padx=10, pady=10)
+        # Frame principal para el PDF con scrollbars y mejor estilo
+        self.pdf_main_frame = ctk.CTkFrame(self.pdf_tab, corner_radius=8)
+        self.pdf_main_frame.pack(fill="both", expand=True, padx=15, pady=15)
         
-        # Canvas con scrollbars para el PDF
-        canvas_frame = tk.Frame(self.pdf_main_frame, bg="#2b2b2b")
-        canvas_frame.pack(fill="both", expand=True, padx=10, pady=10)
+        # Canvas con scrollbars para el PDF - colores dinámicos según tema
+        canvas_bg = "#1e1e1e" if self.current_theme == "dark" else "#ffffff"
+        canvas_frame_bg = "#2b2b2b" if self.current_theme == "dark" else "#f0f0f0"
         
-        # Crear canvas y scrollbars
+        canvas_frame = tk.Frame(self.pdf_main_frame, bg=canvas_frame_bg)
+        canvas_frame.pack(fill="both", expand=True, padx=15, pady=15)
+        
+        # Crear canvas y scrollbars con mejor estilo
         self.pdf_canvas = tk.Canvas(
             canvas_frame,
-            bg="#1e1e1e",
-            highlightthickness=0
+            bg=canvas_bg,
+            highlightthickness=0,
+            relief='flat'
         )
         
         # Configurar eventos del mouse en el canvas
@@ -297,8 +527,19 @@ class BiomedicaDSPApp:
         self.pdf_canvas.bind("<Button-4>", self.on_mouse_wheel)  # Linux scroll up
         self.pdf_canvas.bind("<Button-5>", self.on_mouse_wheel)  # Linux scroll down
         
-        v_scrollbar = tk.Scrollbar(canvas_frame, orient="vertical", command=self.pdf_canvas.yview)
-        h_scrollbar = tk.Scrollbar(canvas_frame, orient="horizontal", command=self.pdf_canvas.xview)
+        # Scrollbars con mejor estilo
+        v_scrollbar = tk.Scrollbar(
+            canvas_frame, 
+            orient="vertical", 
+            command=self.pdf_canvas.yview,
+            width=16
+        )
+        h_scrollbar = tk.Scrollbar(
+            canvas_frame, 
+            orient="horizontal", 
+            command=self.pdf_canvas.xview,
+            width=16
+        )
         
         self.pdf_canvas.configure(
             yscrollcommand=v_scrollbar.set,
@@ -310,11 +551,11 @@ class BiomedicaDSPApp:
         h_scrollbar.pack(side="bottom", fill="x")
         self.pdf_canvas.pack(fill="both", expand=True)
         
-        # Label para mostrar información cuando no hay PDF
+        # Label para mostrar información cuando no hay PDF con mejor estilo
         self.pdf_info_label = ctk.CTkLabel(
             self.pdf_main_frame,
             text="📖 Selecciona una clase para ver el material PDF aquí",
-            font=ctk.CTkFont(size=16),
+            font=self.fonts['subtitle'],
             text_color=("gray50", "gray70")
         )
         self.pdf_info_label.pack(expand=True)
@@ -322,28 +563,34 @@ class BiomedicaDSPApp:
     def setup_unified_code_tab(self):
         """Configurar el tab unificado de código con ejecución y gráficos optimizado para visualización"""
         
-        # Frame principal con división horizontal (lado a lado)
-        main_paned = tk.PanedWindow(self.code_tab, orient=tk.HORIZONTAL, sashrelief=tk.RAISED, sashwidth=4)
-        main_paned.pack(fill="both", expand=True, padx=10, pady=10)
+        # Frame principal con división horizontal (lado a lado) - mejor estilo
+        main_paned = tk.PanedWindow(
+            self.code_tab, 
+            orient=tk.HORIZONTAL, 
+            sashrelief=tk.RAISED, 
+            sashwidth=6,
+            bg="#2b2b2b" if self.current_theme == "dark" else "#e0e0e0"
+        )
+        main_paned.pack(fill="both", expand=True, padx=15, pady=15)
         
         # =================== PANEL IZQUIERDO: CÓDIGO Y CONTROLES ===================
-        left_panel = ctk.CTkFrame(main_paned)
+        left_panel = ctk.CTkFrame(main_paned, corner_radius=8)
         main_paned.add(left_panel, minsize=400)
         
-        # Header del código con controles principales
-        code_header = ctk.CTkFrame(left_panel)
-        code_header.pack(fill="x", padx=10, pady=10)
+        # Header del código con controles principales - mejor estilo
+        code_header = ctk.CTkFrame(left_panel, corner_radius=6)
+        code_header.pack(fill="x", padx=15, pady=15)
         
         self.code_label = ctk.CTkLabel(
             code_header,
             text="💻 Selecciona una clase para ver el código",
-            font=ctk.CTkFont(size=14, weight="bold")
+            font=self.fonts['header']
         )
-        self.code_label.pack(pady=10)
+        self.code_label.pack(pady=15)
         
-        # Controles de ejecución prominentes
-        controls_frame = ctk.CTkFrame(code_header)
-        controls_frame.pack(fill="x", pady=10)
+        # Controles de ejecución prominentes con mejor diseño
+        controls_frame = ctk.CTkFrame(code_header, corner_radius=6)
+        controls_frame.pack(fill="x", pady=15)
         
         self.run_btn = ctk.CTkButton(
             controls_frame,
@@ -352,23 +599,26 @@ class BiomedicaDSPApp:
             state="disabled",
             fg_color="#28a745",
             hover_color="#218838",
-            width=200,
-            height=45,
-            font=ctk.CTkFont(size=14, weight="bold")
+            width=220,
+            height=50,
+            font=self.fonts['button'],
+            corner_radius=8
         )
-        self.run_btn.pack(pady=10)
+        self.run_btn.pack(pady=15)
         
-        # Fila de botones secundarios
-        secondary_controls = ctk.CTkFrame(controls_frame)
-        secondary_controls.pack(fill="x", pady=5)
+        # Fila de botones secundarios con mejor organización
+        secondary_controls = ctk.CTkFrame(controls_frame, fg_color="transparent")
+        secondary_controls.pack(fill="x", pady=10)
         
         self.save_code_btn = ctk.CTkButton(
             secondary_controls,
             text="💾 Guardar",
             command=self.save_code_changes,
             state="disabled",
-            width=90,
-            height=35
+            width=100,
+            height=40,
+            font=self.fonts['button_small'],
+            corner_radius=6
         )
         self.save_code_btn.pack(side="left", padx=5)
         
@@ -379,8 +629,10 @@ class BiomedicaDSPApp:
             state="disabled",
             fg_color="#dc3545",
             hover_color="#c82333",
-            width=90,
-            height=35
+            width=100,
+            height=40,
+            font=self.fonts['button_small'],
+            corner_radius=6
         )
         self.stop_btn.pack(side="left", padx=5)
         
@@ -390,116 +642,148 @@ class BiomedicaDSPApp:
             command=self.clear_output,
             fg_color="#6c757d",
             hover_color="#5a6268",
-            width=90,
-            height=35
+            width=100,
+            height=40,
+            font=self.fonts['button_small'],
+            corner_radius=6
         )
         self.clear_output_btn.pack(side="right", padx=5)
         
-        # Editor de código con altura fija más pequeña
-        code_editor_frame = ctk.CTkFrame(left_panel)
-        code_editor_frame.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+        # Editor de código con altura fija más pequeña y mejor estilo
+        code_editor_frame = ctk.CTkFrame(left_panel, corner_radius=8)
+        code_editor_frame.pack(fill="both", expand=True, padx=15, pady=(0, 15))
         
-        # Frame para el text widget con scrollbar
-        text_frame = tk.Frame(code_editor_frame, bg="#2b2b2b")
-        text_frame.pack(fill="both", expand=True, padx=10, pady=10)
+        # Frame para el text widget con scrollbar - mejor estilo
+        text_frame_bg = "#2b2b2b" if self.current_theme == "dark" else "#f0f0f0"
+        text_frame = tk.Frame(code_editor_frame, bg=text_frame_bg)
+        text_frame.pack(fill="both", expand=True, padx=15, pady=15)
         
-        # Text widget más compacto
+        # Text widget más compacto con colores dinámicos según el tema
+        code_bg = "#1e1e1e" if self.current_theme == "dark" else "#ffffff"
+        code_fg = "#d4d4d4" if self.current_theme == "dark" else "#333333"
+        select_bg = "#264f78" if self.current_theme == "dark" else "#0078d4"
+        insert_bg = "#ffffff" if self.current_theme == "dark" else "#000000"
+        
         self.code_text = tk.Text(
             text_frame,
             wrap="none",
-            font=("Consolas", 10),
-            bg="#1e1e1e",
-            fg="#d4d4d4",
-            insertbackground="#ffffff",
-            selectbackground="#264f78",
+            font=("Consolas", 11) if sys.platform == "win32" else ("Monaco", 11),
+            bg=code_bg,
+            fg=code_fg,
+            insertbackground=insert_bg,
+            selectbackground=select_bg,
             relief="flat",
-            padx=8,
-            pady=8
+            padx=12,
+            pady=12,
+            borderwidth=0
         )
         
-        # Scrollbars
-        v_scrollbar = tk.Scrollbar(text_frame, orient="vertical", command=self.code_text.yview)
-        h_scrollbar = tk.Scrollbar(text_frame, orient="horizontal", command=self.code_text.xview)
+        # Scrollbars con mejor estilo
+        v_scrollbar = tk.Scrollbar(
+            text_frame, 
+            orient="vertical", 
+            command=self.code_text.yview,
+            width=16
+        )
+        h_scrollbar = tk.Scrollbar(
+            text_frame, 
+            orient="horizontal", 
+            command=self.code_text.xview,
+            width=16
+        )
         
-        self.code_text.configure(yscrollcommand=v_scrollbar.set, xscrollcommand=h_scrollbar.set)
+        self.code_text.configure(
+            yscrollcommand=v_scrollbar.set, 
+            xscrollcommand=h_scrollbar.set
+        )
         
         # Pack scrollbars y text widget
         v_scrollbar.pack(side="right", fill="y")
         h_scrollbar.pack(side="bottom", fill="x")
         self.code_text.pack(fill="both", expand=True)
         
-        # Sección de salida compacta en la parte inferior del panel izquierdo
-        output_section = ctk.CTkFrame(left_panel)
-        output_section.pack(fill="x", padx=10, pady=(0, 10))
+        # Sección de salida compacta en la parte inferior del panel izquierdo - mejor estilo
+        output_section = ctk.CTkFrame(left_panel, corner_radius=8)
+        output_section.pack(fill="x", padx=15, pady=(0, 15))
         
-        # Header de salida
-        output_header = ctk.CTkFrame(output_section)
-        output_header.pack(fill="x", padx=10, pady=5)
+        # Header de salida con mejor estilo
+        output_header = ctk.CTkFrame(output_section, fg_color="transparent")
+        output_header.pack(fill="x", padx=15, pady=10)
         
         output_title = ctk.CTkLabel(
             output_header,
             text="📋 Salida del Código",
-            font=ctk.CTkFont(size=12, weight="bold")
+            font=self.fonts['body']
         )
         output_title.pack(side="left", padx=10, pady=5)
         
-        # Text widget para la salida más compacto
-        output_frame = ctk.CTkFrame(output_section)
-        output_frame.pack(fill="x", padx=10, pady=(0, 10))
+        # Text widget para la salida más compacto con colores dinámicos
+        output_frame = ctk.CTkFrame(output_section, corner_radius=6)
+        output_frame.pack(fill="x", padx=15, pady=(0, 15))
         
-        output_text_frame = tk.Frame(output_frame, bg="#2b2b2b")
+        output_text_frame_bg = "#2b2b2b" if self.current_theme == "dark" else "#f0f0f0"
+        output_text_frame = tk.Frame(output_frame, bg=output_text_frame_bg)
         output_text_frame.pack(fill="x", padx=10, pady=10)
+        
+        output_bg = "#0d1117" if self.current_theme == "dark" else "#f8f9fa"
+        output_fg = "#c9d1d9" if self.current_theme == "dark" else "#495057"
         
         self.output_text = tk.Text(
             output_text_frame,
             wrap="word",
-            font=("Consolas", 9),
-            bg="#0d1117",
-            fg="#c9d1d9",
-            insertbackground="#ffffff",
+            font=("Consolas", 10) if sys.platform == "win32" else ("Monaco", 10),
+            bg=output_bg,
+            fg=output_fg,
+            insertbackground="#ffffff" if self.current_theme == "dark" else "#000000",
             state="disabled",
             relief="flat",
             height=8,  # Altura fija pequeña
-            padx=8,
-            pady=8
+            padx=10,
+            pady=10,
+            borderwidth=0
         )
         
-        output_scrollbar = tk.Scrollbar(output_text_frame, orient="vertical", command=self.output_text.yview)
+        output_scrollbar = tk.Scrollbar(
+            output_text_frame, 
+            orient="vertical", 
+            command=self.output_text.yview,
+            width=16
+        )
         self.output_text.configure(yscrollcommand=output_scrollbar.set)
         
         output_scrollbar.pack(side="right", fill="y")
         self.output_text.pack(fill="x")
         
         # =================== PANEL DERECHO: GRÁFICOS PRINCIPALES ===================
-        right_panel = ctk.CTkFrame(main_paned)
+        right_panel = ctk.CTkFrame(main_paned, corner_radius=8)
         main_paned.add(right_panel, minsize=600)
         
-        # Header de gráficos prominente
-        plots_header = ctk.CTkFrame(right_panel)
+        # Header de gráficos prominente con mejor estilo
+        plots_header = ctk.CTkFrame(right_panel, corner_radius=6)
         plots_header.pack(fill="x", padx=15, pady=15)
         
         # Título principal de gráficos
         plots_title = ctk.CTkLabel(
             plots_header,
             text="📈 VISUALIZACIÓN DE GRÁFICOS",
-            font=ctk.CTkFont(size=18, weight="bold"),
+            font=self.fonts['subtitle'],
             text_color=("#1f538d", "#4a9eff")
         )
-        plots_title.pack(pady=10)
+        plots_title.pack(pady=15)
         
-        # Status y controles de gráficos
-        plots_controls_frame = ctk.CTkFrame(plots_header)
+        # Status y controles de gráficos con mejor organización
+        plots_controls_frame = ctk.CTkFrame(plots_header, fg_color="transparent")
         plots_controls_frame.pack(fill="x", pady=10)
         
         self.plots_label = ctk.CTkLabel(
             plots_controls_frame,
             text="🎯 Listo para mostrar gráficos",
-            font=ctk.CTkFont(size=14, weight="bold")
+            font=self.fonts['body']
         )
         self.plots_label.pack(side="left", padx=15, pady=10)
         
-        # Controles de gráficos
-        plots_controls = ctk.CTkFrame(plots_controls_frame)
+        # Controles de gráficos con mejor estilo
+        plots_controls = ctk.CTkFrame(plots_controls_frame, corner_radius=6)
         plots_controls.pack(side="right", padx=15, pady=10)
         
         self.save_plots_btn = ctk.CTkButton(
@@ -508,11 +792,12 @@ class BiomedicaDSPApp:
             command=self.save_plots,
             fg_color="#28a745",
             hover_color="#218838",
-            width=120,
-            height=35,
-            font=ctk.CTkFont(size=11, weight="bold")
+            width=130,
+            height=40,
+            font=self.fonts['button_small'],
+            corner_radius=6
         )
-        self.save_plots_btn.pack(side="left", padx=5)
+        self.save_plots_btn.pack(side="left", padx=8, pady=8)
         
         self.clear_plots_btn = ctk.CTkButton(
             plots_controls,
@@ -520,11 +805,12 @@ class BiomedicaDSPApp:
             command=self.clear_plots,
             fg_color="#dc3545",
             hover_color="#c82333",
-            width=120,
-            height=35,
-            font=ctk.CTkFont(size=11, weight="bold")
+            width=130,
+            height=40,
+            font=self.fonts['button_small'],
+            corner_radius=6
         )
-        self.clear_plots_btn.pack(side="left", padx=5)
+        self.clear_plots_btn.pack(side="left", padx=8, pady=8)
         
         # Área principal de gráficos - MUY GRANDE
         plots_main_frame = ctk.CTkFrame(right_panel)
@@ -548,7 +834,7 @@ class BiomedicaDSPApp:
                  "• Pandas visualizations\n" +
                  "• Scipy plots\n\n" +
                  "🚀 ¡Ejecuta código para ver gráficos increíbles!",
-            font=ctk.CTkFont(size=16),
+            font=self.fonts['subtitle'],
             text_color=("#1f538d", "#4a9eff"),
             justify="center"
         )
@@ -675,7 +961,7 @@ class BiomedicaDSPApp:
                  "• plt.show()\n" +
                  "• seaborn plots\n" +
                  "• pandas plots",
-            font=ctk.CTkFont(size=13),
+            font=self.fonts['body_small'],
             text_color=("gray50", "gray70"),
             justify="center"
         )
@@ -831,34 +1117,35 @@ class BiomedicaDSPApp:
         return default_topics.get(normalized_num, f"Tema {class_num}")
     
     def create_navigation(self, units):
-        """Crear la navegación por unidades y clases"""
+        """Crear la navegación por unidades y clases con mejor estilo"""
         
         for unit in units:
-            # Frame para cada unidad
-            unit_frame = ctk.CTkFrame(self.nav_scroll)
-            unit_frame.pack(fill="x", padx=5, pady=5)
+            # Frame para cada unidad con mejor estilo
+            unit_frame = ctk.CTkFrame(self.nav_scroll, corner_radius=8)
+            unit_frame.pack(fill="x", padx=8, pady=8)
             
-            # Título de la unidad
+            # Título de la unidad con fuente mejorada
             unit_label = ctk.CTkLabel(
                 unit_frame,
                 text=unit["name"],
-                font=ctk.CTkFont(size=14, weight="bold"),
-                wraplength=280
+                font=self.fonts['header'],
+                wraplength=300
             )
-            unit_label.pack(pady=10)
+            unit_label.pack(pady=15)
             
-            # Clases de la unidad
+            # Clases de la unidad con mejor estilo
             for class_data in unit["classes"]:
                 class_btn = ctk.CTkButton(
                     unit_frame,
                     text=class_data["name"],
                     command=lambda cd=class_data, btn=None: self.load_class(cd, btn),
-                    width=260,
-                    height=40,
-                    font=ctk.CTkFont(size=11),
-                    anchor="w"
+                    width=280,
+                    height=45,
+                    font=self.fonts['body_small'],
+                    anchor="w",
+                    corner_radius=6
                 )
-                class_btn.pack(pady=2, padx=10)
+                class_btn.pack(pady=3, padx=15)
                 
                 # Actualizar la referencia del botón en el comando
                 class_btn.configure(command=lambda cd=class_data, btn=class_btn: self.load_class(cd, btn))
@@ -1442,7 +1729,7 @@ plt.ioff()  # Modo no interactivo
             title_label = ctk.CTkLabel(
                 fig_frame,
                 text=fig_title,
-                font=ctk.CTkFont(size=14, weight="bold")
+                font=self.fonts['body']
             )
             title_label.pack(pady=5)
             

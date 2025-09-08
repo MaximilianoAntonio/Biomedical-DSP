@@ -60,7 +60,10 @@ a = Analysis(
         're',
         'tempfile',
         'shutil',
-        'warnings'
+        'warnings',
+        'darkdetect',  # Nueva dependencia para detección de tema
+        'scipy',       # Agregada en requirements
+        'typing'       # Para compatibilidad de tipos
     ],
     hookspath=[],
     hooksconfig={},

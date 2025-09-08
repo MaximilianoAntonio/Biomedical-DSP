@@ -1,7 +1,8 @@
-customtkinter>=5.2.0
+customtkinter>=5.2.2
 PyMuPDF>=1.23.0
-Pillow>=9.0.0
-matplotlib>=3.5.0
+Pillow>=10.0.0
+matplotlib>=3.7.0
 numpy>=1.21.0
-scipy>=1.7.0
+scipy>=1.9.0
 pyinstaller>=5.0.0
+darkdetect>=0.8.0
